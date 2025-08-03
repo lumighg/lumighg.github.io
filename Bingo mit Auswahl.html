@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bingo Auswahl</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    h1 {
+      font-size: 32px;
+      margin: 20px 0;
+    }
+
+    .selection-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      width: 680px;
+      margin: 0 auto 50px;
+    }
+
+    .bingo-cell {
+      width: 166px;
+      height: 166px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid black;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      box-sizing: border-box;
+      user-select: none;
+      transition: background-color 0.3s, transform 0.3s;
+    }
+
+    .bingo-cell:hover {
+      background-color: #f0f0f0;
+      transform: scale(1.1);
+      z-index: 1;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .bingo-cell:active {
+      transform: scale(1.1);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .inactive {
+      border: 2px dashed gray;
+      color: gray;
+      cursor: default;
+    }
+
+    .inactive:hover {
+      background-color: transparent;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .bingo-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .bingo-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      width: 680px;
+      margin-top: 30px;
+    }
+
+    .bingo-cell-play {
+      width: 166px;
+      height: 166px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid black;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+      cursor: pointer;
+      box-sizing: border-box;
+      user-select: none;
+      transition: background-color 0.3s, transform 0.3s;
+    }
+
+    .bingo-cell-play:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .bingo-cell-play:active {
+      transform: scale(1.1);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .marked { background-color: lightgray; }
+    .bingo { background-color: green; color: white; }
+
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    html, body {
+      height: auto;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+  </style>
+</head>
+<body>
+  <h1 id="bingoTitle">Wähle ein Bingo</h1>
+
+  <div class="selection-grid" id="selectionGrid"></div>
+
+  <div class="bingo-container" id="bingoContainer">
+    <button onclick="backToSelection()">Zurück zur Auswahl</button>
+    <button id="reshuffleButton" style="margin-top:10px;">Bingo mischen</button>
+    <div class="bingo-grid" id="bingoBoard"></div>
+  </div>
+
+  <script>
+    const wordLists = {
+      schuerhoff: [
+        "Unterbrechen", "Stundenfarbe", "Jemand der noch nicht so viel gesagt hat", "Spricht von sich in der dritten Person", "Stressreaktion", "Sagt wenn euch das zu langweilig ist",
+        "Erzählt Geschichten aus ihrem Leben", "Perfekt auf euch zugeschnitten", "Stampft die Treppe hoch", "Tafelbild", "Beantwortet eine Frage ganz anders", 
+        "Entschuldigt sich für ihre Schrift", "Darf ich das kurz holen?", "Wie kann ich das denn formulieren?", "Schhhhh!", "Germanistik- studium"
+      ],
+      fischer: [
+        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"
+      ]
+      // weitere Bingos hier definieren
+    };
+
+    const allBingoTypes = [
+      "schuerhoff", "fischer", "", "", "", "", "", "",
+      "", "", "", "", "", "", "", "",
+      "", "", "", "", "", "", "", ""
+    ];
+
+    let currentBingoType = null;
+
+    function initSelection() {
+      const selectionGrid = document.getElementById("selectionGrid");
+      selectionGrid.innerHTML = "";
+
+      allBingoTypes.forEach(key => {
+        const cell = document.createElement("div");
+        cell.className = "bingo-cell";
+
+        if (wordLists[key]) {
+          cell.innerText = capitalize(key);
+          cell.onclick = () => startBingo(key);
+        } else {
+          cell.classList.add("inactive");
+          cell.innerText = "(kommt bald)";
+        }
+
+        selectionGrid.appendChild(cell);
+      });
+    }
+
+    function capitalize(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    function startBingo(type) {
+      currentBingoType = type;
+      renderBingoBoard(type);
+
+      document.getElementById("bingoTitle").innerText = capitalize(type) + " Bingo";
+      document.getElementById("selectionGrid").style.display = "none";
+      document.getElementById("bingoContainer").style.display = "flex";
+      document.getElementById("bingoTitle").style.color = "black";
+    }
+
+    function renderBingoBoard(type) {
+      const words = [...wordLists[type]];
+      const shuffledWords = words.sort(() => 0.5 - Math.random());
+      const selectedWords = shuffledWords.slice(0, 16);
+
+      const board = document.getElementById("bingoBoard");
+      board.innerHTML = "";
+
+      selectedWords.forEach((word, index) => {
+        const cell = document.createElement("div");
+        cell.className = "bingo-cell-play";
+        cell.innerText = word;
+        cell.dataset.index = index;
+        cell.onclick = () => {
+          cell.classList.toggle("marked");
+          checkBingo();
+        };
+        board.appendChild(cell);
+      });
+    }
+
+    function backToSelection() {
+      currentBingoType = null;
+      document.getElementById("bingoTitle").innerText = "Wähle ein Bingo";
+      document.getElementById("bingoContainer").style.display = "none";
+      document.getElementById("selectionGrid").style.display = "grid";
+      document.getElementById("bingoTitle").style.color = "black";
+    }
+
+    // Neu: Bingo mischen Button-Handler
+    document.getElementById("reshuffleButton").addEventListener("click", () => {
+      if (!currentBingoType) return;
+      renderBingoBoard(currentBingoType);
+      document.getElementById("bingoTitle").innerText = capitalize(currentBingoType) + " Bingo";
+      document.getElementById("bingoTitle").style.color = "black";
+    });
+
+    function checkBingo() {
+      const board = document.getElementById("bingoBoard").children;
+      const title = document.getElementById("bingoTitle");
+      const grid = Array.from(board).map(cell => cell.classList.contains("marked"));
+      const winPatterns = [
+        [0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15],
+        [0, 4, 8, 12], [1, 5, 9, 13], [2, 6, 10, 14], [3, 7, 11, 15],
+        [0, 5, 10, 15], [3, 6, 9, 12]
+      ];
+
+      let bingo = false;
+      winPatterns.forEach(pattern => {
+        if (pattern.every(index => grid[index])) {
+          bingo = true;
+          pattern.forEach(index => board[index].classList.add("bingo"));
+        }
+      });
+
+      if (bingo) {
+        title.innerText = "BINGO!";
+        title.style.color = "green";
+      } else {
+        title.style.color = "black";
+      }
+    }
+
+    initSelection();
+  </script>
+</body>
+</html>
